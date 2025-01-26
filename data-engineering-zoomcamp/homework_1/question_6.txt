@@ -1,0 +1,27 @@
+JFK Airport
+
+
+#1
+SELECT TO_CHAR(lpep_pickup_datetime, 'YYYY-MM') as year_month, tl_p."Zone" AS "Pickup_Zone", tip_amount, tl_d."Zone" AS "Dropoff_Zone"
+FROM green_taxi_data gt
+JOIN taxi_zone_lookup tl_p
+ON gt."PULocationID" = tl_p."LocationID"
+JOIN taxi_zone_lookup tl_d
+ON gt."DOLocationID" = tl_d."LocationID"
+WHERE tl_p."Zone" = 'East Harlem North'
+AND TO_CHAR(lpep_pickup_datetime, 'YYYY-MM') = '2019-10'
+ORDER BY tip_amount DESC
+LIMIT 1;
+
+
+#2
+SELECT CONCAT(EXTRACT(YEAR FROM lpep_pickup_datetime),'-',EXTRACT(MONTH FROM lpep_pickup_datetime)) as year_month, tl_p."Zone" AS "Pickup_Zone", tip_amount, tl_d."Zone" AS "Dropoff_Zone"
+FROM green_taxi_data gt
+JOIN taxi_zone_lookup tl_p
+ON gt."PULocationID" = tl_p."LocationID"
+JOIN taxi_zone_lookup tl_d
+ON gt."DOLocationID" = tl_d."LocationID"
+WHERE tl_p."Zone" = 'East Harlem North'
+AND CONCAT(EXTRACT(YEAR FROM lpep_pickup_datetime),'-',EXTRACT(MONTH FROM lpep_pickup_datetime)) = '2019-10'
+ORDER BY tip_amount DESC
+LIMIT 1;

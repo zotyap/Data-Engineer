@@ -1,0 +1,9 @@
+sudo apt install git
+git clone https://github.com/DataTalksClub/data-engineering-zoomcamp.git
+cp -r data-engineering-zoomcamp/01-docker-terraform/1_terraform_gcp/terraform/terraform_basic/ terraform_basic
+cp -r data-engineering-zoomcamp/01-docker-terraform/1_terraform_gcp/terraform/terraform_with_variables/ terraform_with_variables
+
+
+terraform init
+terraform apply -auto-approve
+terraform destroy

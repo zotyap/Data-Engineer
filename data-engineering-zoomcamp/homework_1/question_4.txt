@@ -1,0 +1,14 @@
+2019-10-31
+
+
+SELECT CAST(lpep_pickup_datetime AS DATE) "pickup_date"
+FROM green_taxi_data
+ORDER BY trip_distance DESC
+LIMIT 1;
+
+
+SELECT CAST(lpep_pickup_datetime AS DATE) "pickup_date", MAX(trip_distance) AS longest_trip_that_day
+FROM green_taxi_data
+GROUP BY CAST(lpep_pickup_datetime AS DATE)
+ORDER BY longest_trip_that_day DESC
+LIMIT 1;

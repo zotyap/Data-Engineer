@@ -1,0 +1,24 @@
+24.3.1
+
+
+#1
+docker run -it --entrypoint /bin/bash python:3.12.8
+
+pip --version
+
+--------------------------------------------------------
+#2
+
+dockerfile:
+python3128
+
+FROM python:3.12.8
+
+ENTRYPOINT ["bash"]
+
+
+docker build -t my_python:3.12.8 -f python3128 .
+
+docker run -it my_python:3.12.8
+
+pip --version

@@ -1,0 +1,11 @@
+East Harlem North, East Harlem South, Morningside Heights
+
+
+SELECT tl."Zone", CAST(lpep_pickup_datetime AS DATE) "pickup_date", SUM(total_amount) "total_sum"
+FROM green_taxi_data as gt
+JOIN taxi_zone_lookup as tl
+ON gt."PULocationID" = tl."LocationID"
+WHERE CAST(lpep_pickup_datetime AS DATE) = '2019-10-18'
+GROUP BY tl."Zone", pickup_date
+HAVING SUM(total_amount) > 13000
+ORDER BY total_sum DESC;
