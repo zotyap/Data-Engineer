@@ -9,7 +9,7 @@ terraform {
 
 provider "google" {
 # Credential used:
-# export $GOOGLE_CREDENTIALS
+# export GOOGLE_CREDENTIALS
   project     = "de-zoomcamp-448512"
   region      = "europe-west1"
   zone        = "europe-west1-b"
