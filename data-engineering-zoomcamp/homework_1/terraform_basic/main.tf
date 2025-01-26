@@ -43,7 +43,7 @@ resource "google_storage_bucket" "data-lake-bucket" {
 
 
 resource "google_bigquery_dataset" "dataset" {
-  dataset_id = "<homework_dataset>"
+  dataset_id = "<demo_dataset>"
   project    = "de-zoomcamp-448512"
   location   = "EU"
 }
