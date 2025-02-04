@@ -1,3 +1,6 @@
+Assignment:
+Used gc_taxi_scheduled.yaml - Trigger - Backfill executions to upload yellow and green taxi data between 2021-01-01 and 2021-07-31 to Google Cloud Bucket and to BigQuery
+
 #1
 128.3 MB
 
