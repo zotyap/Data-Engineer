@@ -1,0 +1,13 @@
+-- External table
+
+CREATE OR REPLACE EXTERNAL TABLE `de-zoomcamp-448512.nytaxi.external_yellow_2024_tripdata`
+OPTIONS (
+  format = 'parquet',
+  uris = ['gs://de_zoomcamp_zotya/yellow_tripdata_2024-*.parquet']
+);
+
+
+-- regular, non partitioned table
+
+CREATE OR REPLACE TABLE de-zoomcamp-448512.nytaxi.yellow_2024_tripdata_non_partitioned AS
+SELECT * FROM `de-zoomcamp-448512.nytaxi.external_yellow_2024_tripdata`;
