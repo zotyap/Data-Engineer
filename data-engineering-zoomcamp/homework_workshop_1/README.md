@@ -14,7 +14,7 @@ Question 3: What is the total number of records extracted?
 10000
 
 
-Question4: What is the average trip duration?
+Question 4: What is the average trip duration?
 
 12.3049
 
