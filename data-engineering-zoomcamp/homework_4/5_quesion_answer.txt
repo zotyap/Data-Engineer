@@ -25,7 +25,7 @@ yellow_quater_year as (
     FORMAT_TIMESTAMP('%Y', pickup_datetime) || '-Q' || CAST(EXTRACT(QUARTER FROM pickup_datetime) AS STRING) AS year_quarter,
     total_amount,
     'Yellow' as service_type
-    from {{ ref('stg_green_tripdata') }} 
+    from {{ ref('stg_yellow_tripdata') }} 
 ),
 union_quater_year as (
     SELECT * FROM green_quater_year
