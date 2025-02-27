@@ -1,0 +1,52 @@
+#1
+Question 1: Understanding dbt model resolution
+
+Provided you've got the following sources.yaml
+
+version: 2
+
+sources:
+  - name: raw_nyc_tripdata
+    database: "{{ env_var('DBT_BIGQUERY_PROJECT', 'dtc_zoomcamp_2025') }}"
+    schema:   "{{ env_var('DBT_BIGQUERY_SOURCE_DATASET', 'raw_nyc_tripdata') }}"
+    tables:
+      - name: ext_green_taxi
+      - name: ext_yellow_taxi
+
+with the following env variables setup where dbt runs:
+
+export DBT_BIGQUERY_PROJECT=myproject
+export DBT_BIGQUERY_DATASET=my_nyc_tripdata
+
+What does this .sql model compile to?
+
+select * 
+from {{ source('raw_nyc_tripdata', 'ext_green_taxi' ) }}
+
+
+answer:
+select * from myproject.my_nyc_tripdata.ext_green_taxi
+
+-----------------------------------------------------------------------------
+#2
+Question 2: dbt Variables & Dynamic Models
+
+select *
+from {{ ref('fact_taxi_trips') }}
+where pickup_datetime >= CURRENT_DATE - INTERVAL '30' DAY
+
+
+What would you change to accomplish that in a such way that command line arguments takes precedence over ENV_VARs, which takes precedence over DEFAULT value?
+
+
+answer:
+WHERE pickup_datetime >= CURRENT_DATE - INTERVAL '{{ var("days_back", env_var("DAYS_BACK", "30")) }}' DAY
+
+----------------------------------------------------------------------------------------------------------------
+#3
+Question 3: dbt Data Lineage and Execution
+
+Select the option that does NOT apply for materializing fct_taxi_monthly_zone_revenue:
+
+answer:
+dbt run --select models/staging/+
