@@ -1,0 +1,65 @@
+#1
+{{
+    config(
+        materialized='table'
+    )
+}}
+
+with green_fare_month as (
+    select 
+    FORMAT_TIMESTAMP('%Y', pickup_datetime) AS year,
+    FORMAT_TIMESTAMP('%m', pickup_datetime) AS month,
+    fare_amount,
+    trip_distance,
+    payment_type_description,
+    'Green' as service_type
+    from {{ ref('stg_green_tripdata') }} 
+),
+yellow_fare_month as (
+    select 
+    FORMAT_TIMESTAMP('%Y', pickup_datetime) AS year,
+    FORMAT_TIMESTAMP('%m', pickup_datetime) AS month,
+    fare_amount,
+    trip_distance,
+    payment_type_description,
+    'Yellow' as service_type
+    from {{ ref('stg_yellow_tripdata') }} 
+),
+union_fare_month as (
+    SELECT * FROM green_fare_month
+    union all
+    SELECT * FROM yellow_fare_month
+)
+
+SELECT * FROM union_fare_month
+
+#2
+Filter out invalid entries (fare_amount > 0, trip_distance > 0, and payment_type_description in ('Cash', 'Credit Card'))
+
+SELECT * FROM union_fare_month
+WHERE fare_amount > 0
+AND trip_distance > 0
+AND payment_type_description in ('Cash', 'Credit Card')
+
+#3
+Compute the continous percentile of fare_amount partitioning by service_type, year and and month
+
+SELECT service_type, year, month, APPROX_QUANTILES(fare_amount, 100)[OFFSET(95)] AS fare_p95
+FROM `de-zoomcamp-448512.nytaxi.fct_taxi_trips_monthly_fare_p95`
+GROUP BY service_type, year, month
+ORDER BY service_type, year, month;
+
+Now, what are the values of p97, p95, p90 for Green Taxi and Yellow Taxi, in April 2020?
+
+SELECT service_type, year, month, 
+PERCENTILE_CONT(fare_amount, 0.97) OVER (PARTITION BY service_type, year, month) AS fare_p97,
+PERCENTILE_CONT(fare_amount, 0.95) OVER (PARTITION BY service_type, year, month) AS fare_p95,
+PERCENTILE_CONT(fare_amount, 0.90) OVER (PARTITION BY service_type, year, month) AS fare_p90,
+FROM `de-zoomcamp-448512.nytaxi.fct_taxi_trips_monthly_fare_p95`
+WHERE year = '2020'
+AND month = '04'
+AND service_type = 'Yellow'
+-- AND service_type = 'Green'
+
+answer:
+green: {p97: 55.0, p95: 45.0, p90: 26.5}, yellow: {p97: 31.5, p95: 25.5, p90: 19.0}
