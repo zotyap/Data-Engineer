@@ -6,18 +6,6 @@ models:
       List of unique zones idefied by locationid. 
       Includes the service zone they correspond to (Green or yellow).
 
-  - name: dm_monthly_zone_revenue
-    description: >
-      Aggregated table of all taxi trips corresponding to both service zones (Green and yellow) per pickup zone, month and service.
-      The table contains monthly sums of the fare elements used to calculate the monthly revenue. 
-      The table contains also monthly indicators like number of trips, and average trip distance. 
-    columns:
-      - name: revenue_monthly_total_amount
-        description: Monthly sum of the the total_amount of the fare charged for the trip per pickup zone, month and service.
-        tests:
-            - not_null:
-                severity: error
-
   - name: fact_trips
     description: > 
       Taxi trips corresponding to both service zones (Green and yellow).
@@ -26,7 +14,7 @@ models:
     columns:
       - name: tripid
         data_type: string
-        description: ""
+        description: "unique identifier conformed by the combination of vendorid and pickup time"
 
       - name: vendorid
         data_type: int64
@@ -129,8 +117,17 @@ models:
         description: ""
 
   - name: dm_monthly_zone_revenue
-    description: ""
+    description: >
+      Aggregated table of all taxi trips corresponding to both service zones (Green and yellow) per pickup zone, month and service.
+      The table contains monthly sums of the fare elements used to calculate the monthly revenue. 
+      The table contains also monthly indicators like number of trips, and average trip distance. 
     columns:
+      - name: revenue_monthly_total_amount
+        description: Monthly sum of the the total_amount of the fare charged for the trip per pickup zone, month and service.
+        tests:
+            - not_null:
+                severity: error
+
       - name: revenue_zone
         data_type: string
         description: ""
@@ -168,10 +165,6 @@ models:
         description: ""
 
       - name: revenue_monthly_improvement_surcharge
-        data_type: numeric
-        description: ""
-
-      - name: revenue_monthly_total_amount
         data_type: numeric
         description: ""
 
