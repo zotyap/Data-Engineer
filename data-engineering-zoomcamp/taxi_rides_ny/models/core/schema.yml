@@ -1,11 +1,6 @@
 version: 2
 
 models:
-  - name: dim_zones
-    description: >
-      List of unique zones idefied by locationid. 
-      Includes the service zone they correspond to (Green or yellow).
-
   - name: fact_trips
     description: > 
       Taxi trips corresponding to both service zones (Green and yellow).
@@ -179,9 +174,11 @@ models:
       - name: avg_monthly_trip_distance
         data_type: numeric
         description: ""
-
+        
   - name: dim_zones
-    description: ""
+    description: >
+      List of unique zones idefied by locationid. 
+      Includes the service zone they correspond to (Green or yellow).
     columns:
       - name: locationid
         data_type: int64
