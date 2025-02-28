@@ -1,0 +1,144 @@
+staging/schema.yml:
+
+  - name: stg_fhv_tripdata
+    description: ""
+    columns:
+      - name: dispatching_base_num
+        data_type: string
+        description: ""
+
+      - name: SR_Flag
+        data_type: numeric
+        description: ""
+
+      - name: Affiliated_base_number
+        data_type: string
+        description: ""
+
+      - name: pickup_locationid
+        data_type: int64
+        description: ""
+
+      - name: dropoff_locationid
+        data_type: int64
+        description: ""
+        
+      - name: pickup_datetime
+        data_type: timestamp
+        description: ""
+
+      - name: dropoff_datetime
+        data_type: timestamp
+        description: ""
+
+-------------------------------------
+staging/stg_fhv_tripdata.sql:
+
+{{
+    config(
+        materialized='view'
+    )
+}}
+
+with tripdata as 
+(
+  select *
+  from {{ source('staging','fhv_tripdata') }}
+  where dispatching_base_num  is not null 
+)
+select
+    -- default
+    dispatching_base_num,
+    cast(SR_Flag as numeric) as SR_Flag,
+    Affiliated_base_number,
+
+    -- identifiers  
+    {{ dbt.safe_cast("pulocationid", api.Column.translate_type("integer")) }} as pickup_locationid,
+    {{ dbt.safe_cast("dolocationid", api.Column.translate_type("integer")) }} as dropoff_locationid,
+    
+    -- timestamps
+    cast(pickup_datetime as timestamp) as pickup_datetime,
+    cast(dropOff_datetime as timestamp) as dropoff_datetime
+
+from tripdata
+    
+-- dbt build --select <model_name> --vars '{'is_test_run': 'false'}'
+{% if var('is_test_run', default=false) %}
+
+  limit 100
+
+{% endif %}
+
+-------------------------------------------------------------------------
+models/core/dim_fhv_trips.sql:
+
+{{
+    config(
+        materialized='table'
+    )
+}}
+
+with fhv_tripdata as (
+    select *, 
+        'FHV' as service_type
+    from {{ ref('stg_fhv_tripdata') }}
+), 
+dim_zones as (
+    select * from {{ ref('dim_zones') }}
+    where borough != 'Unknown'
+)
+select fhv_tripdata.service_type,
+    fhv_tripdata.dispatching_base_num, 
+    fhv_tripdata.SR_Flag,
+    fhv_tripdata.Affiliated_base_number,
+    fhv_tripdata.pickup_datetime,
+    fhv_tripdata.dropoff_datetime,
+    fhv_tripdata.pickup_locationid, 
+    pickup_zone.borough as pickup_borough, 
+    pickup_zone.zone as pickup_zone, 
+    fhv_tripdata.dropoff_locationid,
+    dropoff_zone.borough as dropoff_borough, 
+    dropoff_zone.zone as dropoff_zone
+from fhv_tripdata
+inner join dim_zones as pickup_zone
+on fhv_tripdata.pickup_locationid = pickup_zone.locationid
+inner join dim_zones as dropoff_zone
+on fhv_tripdata.dropoff_locationid = dropoff_zone.locationid
+
+------------------------------------------------------------------------
+fct_fhv_monthly_zone_traveltime_p90.sql:
+
+{{
+    config(
+        materialized='table'
+    )
+}}
+
+with fhv_monthly_travel as (
+    select 
+    FORMAT_TIMESTAMP('%Y', pickup_datetime) AS year,
+    FORMAT_TIMESTAMP('%m', pickup_datetime) AS month,
+    TIMESTAMP_DIFF(dropoff_datetime, pickup_datetime, SECOND) AS trip_duration,
+    pickup_zone,
+    dropoff_zone,
+    service_type
+    from {{ ref('dim_fhv_trips') }} 
+)
+
+SELECT * FROM fhv_monthly_travel
+
+----------------------------------------------------------------------------------
+BigQuery:
+
+SELECT year, month, pickup_zone, dropoff_zone, trip_dur_p90 FROM
+(SELECT *, 
+PERCENTILE_CONT(trip_duration, 0.90) OVER (PARTITION BY year, month, pickup_zone, dropoff_zone) AS trip_dur_p90,
+FROM `de-zoomcamp-448512.nytaxi.fct_fhv_monthly_zone_traveltime_p90`
+WHERE pickup_zone IN ('Newark Airport', 'SoHo', 'Yorkville East')
+AND year = '2019'
+AND month = '11') AS sub_query
+GROUP BY year, month, pickup_zone, dropoff_zone, trip_dur_p90
+ORDER BY trip_dur_p90 DESC;
+
+answer: 
+LaGuardia Airport, Chinatown, Garment District
