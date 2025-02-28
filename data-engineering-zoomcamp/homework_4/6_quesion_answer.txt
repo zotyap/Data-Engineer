@@ -51,18 +51,6 @@ ORDER BY service_type, year, month;
 
 Now, what are the values of p97, p95, p90 for Green Taxi and Yellow Taxi, in April 2020?
 
-SELECT service_type, year, month,
-APPROX_QUANTILES(fare_amount, 100)[OFFSET(97)] AS fare_p97,
-APPROX_QUANTILES(fare_amount, 100)[OFFSET(95)] AS fare_p95,
-APPROX_QUANTILES(fare_amount, 100)[OFFSET(90)] AS fare_p90
-FROM `de-zoomcamp-448512.nytaxi.fct_taxi_trips_monthly_fare_p95`
-WHERE year = '2020'
-AND month = '04'
-GROUP BY service_type, year, month
-ORDER BY service_type, year, month;
-
-or
-
 SELECT *
 FROM (
 SELECT service_type, year, month, 
