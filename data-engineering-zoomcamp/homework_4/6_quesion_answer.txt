@@ -51,15 +51,16 @@ ORDER BY service_type, year, month;
 
 Now, what are the values of p97, p95, p90 for Green Taxi and Yellow Taxi, in April 2020?
 
+SELECT *
+FROM (
 SELECT service_type, year, month, 
 PERCENTILE_CONT(fare_amount, 0.97) OVER (PARTITION BY service_type, year, month) AS fare_p97,
 PERCENTILE_CONT(fare_amount, 0.95) OVER (PARTITION BY service_type, year, month) AS fare_p95,
 PERCENTILE_CONT(fare_amount, 0.90) OVER (PARTITION BY service_type, year, month) AS fare_p90,
 FROM `de-zoomcamp-448512.nytaxi.fct_taxi_trips_monthly_fare_p95`
 WHERE year = '2020'
-AND month = '04'
-AND service_type = 'Yellow'
--- AND service_type = 'Green'
+AND month = '04') AS sub_query
+GROUP BY service_type, year, month, fare_p97, fare_p95, fare_p90
 
 answer:
 green: {p97: 55.0, p95: 45.0, p90: 26.5}, yellow: {p97: 31.5, p95: 25.5, p90: 19.0}
