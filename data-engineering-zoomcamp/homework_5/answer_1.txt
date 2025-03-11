@@ -1,0 +1,76 @@
+Install:
+
+wget https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz
+tar xzfv openjdk-11.0.2_linux-x64_bin.tar.gz
+rm openjdk-11.0.2_linux-x64_bin.tar.gz
+
+wget https://dlcdn.apache.org/spark/spark-3.5.5/spark-3.5.5-bin-hadoop3.tgz
+tar xzfv spark-3.5.5-bin-hadoop3.tgz
+rm spark-3.5.5-bin-hadoop3.tgz
+
+
+sudo nano /home/zotya/.bashrc
+
+export JAVA_HOME="${HOME}/de_zoomcamp/spark/jdk-11.0.2"
+export PATH="${JAVA_HOME}/bin:${PATH}"
+
+export SPARK_HOME="${HOME}/de_zoomcamp/spark/spark-3.4.4-bin-hadoop3"
+export PATH="${SPARK_HOME}/bin:${PATH}"
+
+export PYTHONPATH="${SPARK_HOME}/python/:$PYTHONPATH"
+export PYTHONPATH="${SPARK_HOME}/python/lib/py4j-0.10.9.7-src.zip:$PYTHONPATH"
+
+export PYSPARK_PYTHON="${HOME}/anaconda3/bin/python3"
+export PYSPARK_DRIVER_PYTHON="${HOME}/anaconda3/bin/python3"
+
+source /home/zotya/.bashrc
+
+
+mkdir -p ~/.ipython/profile_default/startup
+nano ~/.ipython/profile_default/startup/00-pyspark-setup.py
+
+import os
+import sys
+
+# Set Spark environment variables
+os.environ["SPARK_HOME"] = "/home/zotya/de_zoomcamp/spark/spark-3.4.4-bin-hadoop3"
+os.environ["JAVA_HOME"] = "/home/zotya/de_zoomcamp/spark/jdk-11.0.2"
+
+# Set the Python path for Spark and Py4J
+spark_python_path = f"{os.environ['SPARK_HOME']}/python"
+py4j_path = f"{spark_python_path}/lib/py4j-0.10.9.7-src.zip"
+
+# Update PYTHONPATH environment variable
+os.environ["PYTHONPATH"] = f"{spark_python_path}:{py4j_path}:{os.environ.get('PYTHONPATH', '')}"
+sys.path.append(spark_python_path)
+sys.path.append(py4j_path)
+
+
+# Set the Python executable for PySpark workers and driver
+os.environ["PYSPARK_PYTHON"] = "/home/zotya/anaconda3/bin/python3"  # Path to Python 3.12
+os.environ["PYSPARK_DRIVER_PYTHON"] = "/home/zotya/anaconda3/bin/python3"  # Path to Python 3.12 for driver
+
+# Ensure the new Python executable's directories are also included in sys.path
+sys.path.append("/home/zotya/anaconda3/bin")
+
+sudo systemctl stop jupyter.service
+sudo systemctl start jupyter.service
+
+
+allow 4040 (and 4041) tcp port on Firewall
+
+
+Test:
+
+import pyspark
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .master("local[*]") \
+    .appName('test') \
+    .getOrCreate()
+
+pyspark.__version__
+
+For me: 3.5.5
+Course guide: 3.3.2

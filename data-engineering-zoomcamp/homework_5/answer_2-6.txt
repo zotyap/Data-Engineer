@@ -1,0 +1,91 @@
+#2
+Read the October 2024 Yellow into a Spark Dataframe.
+Repartition the Dataframe to 4 partitions and save it to parquet.
+What is the average size of the Parquet?
+
+
+!wget https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-10.parquet
+
+import pyspark
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .master("local[*]") \
+    .appName('homework') \
+    .getOrCreate()
+
+df = spark.read \
+    .option("header", "true") \
+    .parquet('yellow_tripdata_2024-10.parquet')
+
+df.repartition(4).write.parquet("re_yellow", mode="overwrite")
+
+!ls -lh re_yellow
+
+
+23MB Each, most closely:25MB
+-------------------------------------------------------------------------------------------------
+#3
+
+How many taxi trips were there on the 15th of October?
+Consider only trips that started on the 15th of October.
+
+
+df.createOrReplaceTempView('yellow_10_24')
+
+spark.sql("""
+SELECT 
+    EXTRACT(MONTH FROM tpep_pickup_datetime) AS Month,
+    EXTRACT(DAY FROM tpep_pickup_datetime) AS Day,
+    COUNT(1) AS trips
+FROM yellow_10_24
+WHERE EXTRACT(DAY FROM tpep_pickup_datetime) = 15
+GROUP BY Month, Day;
+""").show()
+
+
+128 893
+-----------------------------------------------------------------------------------------------------
+#4
+
+What is the length of the longest trip in the dataset in hours?
+
+
+spark.sql("""
+SELECT tpep_pickup_datetime, tpep_dropoff_datetime,
+    DATEDIFF(hour, tpep_pickup_datetime, tpep_dropoff_datetime) AS trip_time_hh
+FROM yellow_10_24
+ORDER BY trip_time_hh DESC;
+""").show()
+
+
+162
+
+#5
+
+4040 (default port)
+
+#6
+
+Using the zone lookup data and the Yellow October 2024 data, what is the name of the LEAST frequent pickup location Zone?
+
+
+!wget https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv
+
+df_zones = spark.read \
+    .option("header", "true") \
+    .csv('taxi_zone_lookup.csv')
+
+df_join = df.join(df_zones, df.PULocationID == df_zones.LocationID)
+
+df_join.createOrReplaceTempView('yellow_10_24_zone')
+
+spark.sql("""
+SELECT Zone, COUNT(1) AS pickups
+FROM yellow_10_24_zone
+GROUP BY Zone
+ORDER BY pickups ASC;
+""").show()
+
+
+Governor's Island
