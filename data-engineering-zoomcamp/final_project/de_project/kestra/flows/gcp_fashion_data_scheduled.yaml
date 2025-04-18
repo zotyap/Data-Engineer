@@ -1,0 +1,220 @@
+id: gcp_fashion_data_scheduled
+namespace: de_project
+
+inputs:
+  - id: fashion
+    type: SELECT
+    displayName: Select data type
+    values: [sales, products]
+    defaults: sales
+
+variables:
+  year: "{{trigger.date | date('yyyy')}}"
+  month: "{{trigger.date | date('MM')}}"
+  file: "{{inputs.fashion}}_{{trigger.date | date('yyyy-MM')}}.csv"
+  gcs_file: "gs://{{kv('GCP_BUCKET_NAME')}}/{{vars.file}}"
+  table: "{{kv('GCP_DATASET')}}.{{inputs.fashion}}_{{trigger.date | date('yyyy_MM')}}"
+  data: "{{outputs['download_' ~ inputs.fashion].outputFiles[inputs.fashion ~ '_' ~ (trigger.date | date('yyyy-MM')) ~ '.csv']}}"
+
+tasks:
+  - id: set_label
+    type: io.kestra.plugin.core.execution.Labels
+    labels:
+      file: "{{render(vars.file)}}"
+      fashion: "{{inputs.fashion}}"
+      year: "{{render(vars.year)}}"
+      month: "{{render(vars.month)}}"
+
+  - id: if_sales
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{inputs.fashion == 'sales'}}"
+    then:
+      - id: download_sales
+        type: io.kestra.plugin.scripts.shell.Commands
+        outputFiles:
+          - "*.csv"
+        taskRunner:
+          type: io.kestra.plugin.core.runner.Process
+        commands:
+          - wget -qO- https://github.com/zotyap/Data-Engineer/raw/refs/heads/main/data/{{inputs.fashion}}/{{render(vars.year)}}/{{render(vars.month)}}.csv > {{render(vars.file)}}
+
+      - id: upload_to_gcs_sales
+        type: io.kestra.plugin.gcp.gcs.Upload
+        from: "{{render(vars.data)}}"
+        to: "{{render(vars.gcs_file)}}"
+
+      - id: bq_fashion_sales
+        type: io.kestra.plugin.gcp.bigquery.Query
+        sql: |
+          CREATE TABLE IF NOT EXISTS `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.fashion_sales`
+          (
+              Unique_ID BYTES,
+              Invoice_ID STRING,
+              Line INTEGER,
+              Customer_ID INTEGER,
+              Product_ID INTEGER,
+              Size STRING,
+              Color STRING,
+              Unit_Price NUMERIC,
+              Quantity INTEGER,
+              Date_Time TIMESTAMP,
+              Discount NUMERIC,
+              Line_Total NUMERIC,
+              Store_ID INTEGER,
+              Employee_ID INTEGER,
+              Currency STRING,
+              Currency_Symbol STRING,
+              SKU STRING,
+              Payment_Method STRING,
+              Invoice_Total NUMERIC
+          )
+          PARTITION BY DATE(Date_Time);
+
+      - id: bq_fashion_sales_ext
+        type: io.kestra.plugin.gcp.bigquery.Query
+        sql: |
+          CREATE OR REPLACE EXTERNAL TABLE `{{kv('GCP_PROJECT_ID')}}.{{render(vars.table)}}_ext`
+          (
+              Invoice_ID STRING,
+              Line INTEGER,
+              Customer_ID INTEGER,
+              Product_ID INTEGER,
+              Size STRING,
+              Color STRING,
+              Unit_Price NUMERIC,
+              Quantity INTEGER,
+              Date_Time TIMESTAMP,
+              Discount NUMERIC,
+              Line_Total NUMERIC,
+              Store_ID INTEGER,
+              Employee_ID INTEGER,
+              Currency STRING,
+              Currency_Symbol STRING,
+              SKU STRING,
+              Payment_Method STRING,
+              Invoice_Total NUMERIC
+          )
+          OPTIONS (
+              format = 'CSV',
+              uris = ['{{render(vars.gcs_file)}}'],
+              field_delimiter = ',',
+              skip_leading_rows = 0,
+              ignore_unknown_values = TRUE
+          );
+
+      - id: bq_sales_table_tmp
+        type: io.kestra.plugin.gcp.bigquery.Query
+        sql: |
+          CREATE OR REPLACE TABLE `{{kv('GCP_PROJECT_ID')}}.{{render(vars.table)}}`
+          AS
+          SELECT
+            MD5(CONCAT(
+              COALESCE(CAST(Invoice_ID AS STRING), ""),
+              COALESCE(CAST(Line AS STRING), "")
+            )) AS Unique_ID,
+            Invoice_ID,
+            Line,
+            Customer_ID,
+            Product_ID,
+            Size,
+            Color,
+            Unit_Price,
+            Quantity,
+            Date_Time,
+            Discount,
+            Line_Total,
+            Store_ID,
+            Employee_ID,
+            Currency,
+            Currency_Symbol,
+            SKU,
+            Payment_Method,
+            Invoice_Total
+          FROM `{{kv('GCP_PROJECT_ID')}}.{{render(vars.table)}}_ext`;
+
+      - id: bq_sales_merge
+        type: io.kestra.plugin.gcp.bigquery.Query
+        sql: |
+          MERGE INTO `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.fashion_sales` T
+          USING `{{kv('GCP_PROJECT_ID')}}.{{render(vars.table)}}` S
+          ON T.Unique_ID = S.Unique_ID
+          WHEN NOT MATCHED THEN
+            INSERT (Unique_ID,Invoice_ID,Line,Customer_ID,Product_ID,Size,Color,Unit_Price,Quantity,Date_Time,Discount,Line_Total,Store_ID,Employee_ID,Currency,Currency_Symbol,SKU,Payment_Method,Invoice_Total)
+            VALUES (S.Unique_ID,S.Invoice_ID,S.Line,S.Customer_ID,S.Product_ID,S.Size,S.Color,S.Unit_Price,S.Quantity,S.Date_Time,S.Discount,S.Line_Total,S.Store_ID,S.Employee_ID,S.Currency,S.Currency_Symbol,S.SKU,S.Payment_Method,S.Invoice_Total);
+
+  - id: if_products
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{inputs.fashion == 'products'}}"
+    then:
+      - id: download_products
+        type: io.kestra.plugin.scripts.shell.Commands
+        outputFiles:
+          - "*.csv"
+        taskRunner:
+          type: io.kestra.plugin.core.runner.Process
+        commands:
+          - wget -qO {{render(vars.file)}} https://github.com/zotyap/Data-Engineer/raw/refs/heads/main/data/products.csv
+
+      - id: upload_to_gcs_products
+        type: io.kestra.plugin.gcp.gcs.Upload
+        from: "{{render(vars.data)}}"
+        to: "{{render(vars.gcs_file)}}"
+
+      - id: bq_fashion_products_ext
+        type: io.kestra.plugin.gcp.bigquery.Query
+        sql: |
+          CREATE OR REPLACE EXTERNAL TABLE `{{kv('GCP_PROJECT_ID')}}.{{render(vars.table)}}_ext`
+          (
+              Product_ID INTEGER,
+              Category STRING,
+              Sub_Category STRING,
+              Description_PT STRING,
+              Description_DE STRING,
+              Description_FR STRING,
+              Description_ES STRING,
+              Description_EN STRING,
+              Description_ZH STRING,
+              Color STRING,
+              Sizes STRING,
+              Production_Cost NUMERIC
+          )
+          OPTIONS (
+              format = 'CSV',
+              uris = ['{{render(vars.gcs_file)}}'],
+              field_delimiter = ',',
+              skip_leading_rows = 1,
+              ignore_unknown_values = TRUE
+          );
+
+      - id: bq_fashion_products
+        type: io.kestra.plugin.gcp.bigquery.Query
+        sql: |
+          CREATE OR REPLACE TABLE `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.fashion_products`
+          AS
+          SELECT *
+          FROM `{{kv('GCP_PROJECT_ID')}}.{{render(vars.table)}}_ext`;
+
+  - id: purge_files
+    type: io.kestra.plugin.core.storage.PurgeCurrentExecutionFiles
+    description: To avoid cluttering your storage, we will remove the downloaded files
+
+pluginDefaults:
+  - type: io.kestra.plugin.gcp
+    values:
+      serviceAccount: "{{kv('GCP_CREDS')}}"
+      projectId: "{{kv('GCP_PROJECT_ID')}}"
+      location: "{{kv('GCP_LOCATION')}}"
+      bucket: "{{kv('GCP_BUCKET_NAME')}}"
+
+triggers:
+  - id: sales_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 9 1 * *"
+    inputs:
+      fashion: sales
+
+  - id: products_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 10 1 * *"
+    inputs:
+      fashion: products

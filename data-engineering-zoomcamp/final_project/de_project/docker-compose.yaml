@@ -1,0 +1,96 @@
+volumes:
+  postgres-data:
+    driver: local
+  kestra-data:
+    driver: local
+
+networks:
+  dezc_project:
+
+services:
+  # Terraform container
+  terraform:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.terraform
+    container_name: terraform_runner
+    volumes:
+      - ./keys:/opt/workspace/keys  # Mount Google Cloud credentials (Credential .json)
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/opt/workspace/keys/gc-final-key.json
+    networks:
+      - dezc_project
+
+  # Kestra container
+  # postgres for Kestra
+  postgres:
+    image: postgres
+    container_name: kestra_postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: kestra
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: k3str4
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    networks: 
+      - dezc_project
+  # Kestra
+  kestra:
+    image: kestra/kestra:latest
+    pull_policy: always
+    container_name: kestra_runner
+    user: "root"
+    command: server standalone -f /app/storage/flows
+    volumes:
+      - kestra-data:/app/storage
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/kestra-wd:/tmp/kestra-wd
+      - ./keys:/home/workspace/keys # Mount Google Cloud credentials (gc-cred.json)
+      - ./kestra/flows:/app/storage/flows  # Mount flow files
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://postgres:5432/kestra
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: k3str4
+        kestra:
+          server:
+            basicAuth:
+              enabled: false
+              username: "admin@kestra.io" # it must be a valid email address
+              password: kestra
+          repository:
+            type: postgres
+          storage:
+            type: local
+            local:
+              basePath: "/app/storage"
+          queue:
+            type: postgres
+          tasks:
+            tmpDir:
+              path: /tmp/kestra-wd/tmp
+          scripts:
+            docker:
+              volume-enabled: true
+          defaults:
+          url: http://localhost:8080/
+          plugins:
+            index:
+              enabled: true
+    working_dir: /app
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_started
+    networks: 
+      - dezc_project

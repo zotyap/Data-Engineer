@@ -1,0 +1,56 @@
+id: gcp_fashion_filter
+namespace: de_project
+
+tasks:
+  - id: bq_sales_filtered
+    type: io.kestra.plugin.gcp.bigquery.Query
+    sql: |
+      CREATE OR REPLACE TABLE `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.sales_filtered`
+      AS
+      SELECT Unique_ID,Customer_ID,Product_ID,Unit_Price,Quantity,Date_Time,Discount,Line_Total,Store_ID,Currency,Payment_Method,Invoice_Total
+      FROM `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.fashion_sales`;
+
+  - id: bq_products_filtered
+    type: io.kestra.plugin.gcp.bigquery.Query
+    sql: |
+      CREATE OR REPLACE TABLE `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.products_filtered`
+      AS
+      SELECT Product_ID, Category, Sub_Category, Description_EN, Color, Sizes, Production_Cost
+      FROM `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.fashion_products`;
+
+  - id: bq_fashion_work_create
+    type: io.kestra.plugin.gcp.bigquery.Query
+    sql: |
+      CREATE OR REPLACE TABLE `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.fashion_work`
+      PARTITION BY DATE(Date_Time)
+      AS
+      SELECT
+        S.Unique_ID,
+        S.Customer_ID,
+        S.Product_ID,
+        S.Unit_Price,
+        S.Quantity,
+        S.Date_Time,
+        S.Discount,
+        S.Line_Total,
+        S.Store_ID,
+        S.Currency,
+        S.Payment_Method,
+        S.Invoice_Total,
+        P.Category,
+        P.Sub_Category,
+        P.Description_EN,
+        P.Color,
+        P.Sizes,
+        P.Production_Cost
+      FROM `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.sales_filtered` S
+      INNER JOIN `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.products_filtered` P
+      ON S.Product_ID = P.Product_ID;
+
+pluginDefaults:
+  - type: io.kestra.plugin.gcp
+    values:
+      serviceAccount: "{{kv('GCP_CREDS')}}"
+      projectId: "{{kv('GCP_PROJECT_ID')}}"
+      location: "{{kv('GCP_LOCATION')}}"
+      bucket: "{{kv('GCP_BUCKET_NAME')}}"
